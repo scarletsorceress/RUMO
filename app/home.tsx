@@ -62,7 +62,7 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* Botão visível APENAS para Orientadores */}
+      {/* botão visível APENAS para os orientadores */}
       {user?.tipo === "orientador" && (
         <TouchableOpacity
           style={styles.createBtn}

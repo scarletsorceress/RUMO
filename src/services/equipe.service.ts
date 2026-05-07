@@ -5,7 +5,7 @@ export interface Equipe {
   nome: string;
   tema: string;
   idOrientador: string;
-  emailsAlunos: string[]; // vamos vincular os alunos pelo email
+  emailsAlunos: string[]; // vinculando os alunos pelo email
 }
 
 let mockEquipes: Equipe[] = [];
@@ -14,10 +14,10 @@ export const EquipeProvider = {
   criar: (nome: string, tema: string, emailsAlunosStr: string): boolean => {
     const user = AuthProvider.getCurrentUser();
 
-    // Trava de segurança: apenas orientador cria equipe
+    // apenas orientador cria as equipes
     if (!user || user.tipo !== "orientador") return false;
 
-    // Transforma a string de emails (separados por vírgula) em um array limpo
+    // transformando a string de emails em um array
     const emailsArray = emailsAlunosStr
       .split(",")
       .map((email) => email.toLowerCase().trim())

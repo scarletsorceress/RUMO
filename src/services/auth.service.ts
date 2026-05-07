@@ -25,7 +25,7 @@ let mockUsers: User[] = [
   },
 ];
 
-// Variável que guarda a sessão atual
+// vbariável que guarda a sessão atual
 let currentUser: User | null = null;
 
 export const AuthProvider = {
@@ -33,7 +33,7 @@ export const AuthProvider = {
     const user = mockUsers.find(
       (u) => u.email === email.toLowerCase().trim() && u.senha === senha,
     );
-    if (user) currentUser = user; // Salva o usuário na sessão
+    if (user) currentUser = user; // salva o usuário na sessão
     return user;
   },
 
@@ -54,6 +54,6 @@ export const AuthProvider = {
   getCurrentUser: () => currentUser,
 
   logout: () => {
-    currentUser = null; // Limpa a sessão ao sair
+    currentUser = null; // limpa a sessão ao sair
   },
 };
