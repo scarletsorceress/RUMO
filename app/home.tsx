@@ -1,121 +1,186 @@
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  FlatList,
-  SafeAreaView,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { AuthProvider, User } from "../src/services/auth.service";
-import { Equipe, EquipeProvider } from "../src/services/equipe.service";
+// IMPORTAÇÃO NOVA E ATUALIZADA DO SAFEAREAVIEW:
+import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../lib/supabase";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [equipes, setEquipes] = useState<Equipe[]>([]);
+  const [nomeUsuario, setNomeUsuario] = useState("Carregando...");
+  const [perfil, setPerfil] = useState("ALUNO");
 
-  // useFocusEffect atualiza a tela toda vez que voltamos para ela
-  useFocusEffect(
-    useCallback(() => {
-      const currentUser = AuthProvider.getCurrentUser();
-      if (!currentUser) {
-        router.replace("/");
+  useEffect(() => {
+    async function getProfile() {
+      const { data: { user }, error } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        setNomeUsuario("Usuário");
         return;
       }
-      setUser(currentUser);
-      setEquipes(EquipeProvider.getMinhasEquipes());
-    }, []),
-  );
 
-  const handleLogout = () => {
-    AuthProvider.logout();
+      let nome = user.user_metadata?.nome_completo || user.email?.split('@')[0] || "Usuário";
+      
+      nome = nome
+        .split(' ')
+        .map((palavra: string) => palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase())
+        .join(' ');
+
+      const tipo = user.user_metadata?.tipo_usuario || "ALUNO";
+
+      setNomeUsuario(nome);
+      setPerfil(tipo.toUpperCase());
+    }
+
+    getProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      Alert.alert("Erro ao sair", error.message);
+      return;
+    }
     router.replace("/");
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      
       <View style={styles.header}>
-        <Text style={styles.welcome}>Olá, {user?.nome.split(" ")[0]}!</Text>
-        <Text style={styles.status}>Perfil: {user?.tipo.toUpperCase()}</Text>
+        <View>
+          <Text style={styles.greeting}>Olá, {nomeUsuario}! 👋</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{perfil}</Text>
+          </View>
+        </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Minhas Equipes</Text>
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>Minhas Equipes</Text>
 
-      {equipes.length === 0 ? (
-        <View style={styles.emptyBox}>
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>📂</Text>
           <Text style={styles.emptyText}>
-            Você ainda não possui equipes vinculadas.
+            Você ainda não possui equipes vinculadas ao seu perfil de {perfil.toLowerCase()}.
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={equipes}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.teamCard}>
-              <Text style={styles.teamName}>{item.nome}</Text>
-              <Text style={styles.teamTheme}>{item.tema}</Text>
-            </View>
-          )}
-        />
-      )}
 
-      {/* botão visível APENAS para os orientadores */}
-      {user?.tipo === "orientador" && (
-        <TouchableOpacity
-          style={styles.createBtn}
+        <TouchableOpacity 
+          style={styles.actionButton}
           onPress={() => router.push("/criar-equipe")}
         >
-          <Text style={styles.createBtnText}>+ Criar Nova Equipe</Text>
+          <Text style={styles.actionButtonText}>+ Criar Nova Equipe</Text>
         </TouchableOpacity>
-      )}
+      </View>
 
-      <TouchableOpacity style={styles.logout} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Sair do Sistema</Text>
-      </TouchableOpacity>
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Sair do Sistema</Text>
+        </TouchableOpacity>
+      </View>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4F7F6", padding: 20 },
-  header: { marginTop: 40, marginBottom: 20 },
-  welcome: { fontSize: 26, fontWeight: "bold", color: "#2C3E50" },
-  status: { color: "#7F8C8D", fontSize: 14, fontWeight: "bold" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F4F6F8",
+  },
+  header: {
+    backgroundColor: "#003366",
+    paddingHorizontal: 25,
+    paddingTop: 40,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  greeting: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 8,
+  },
+  roleBadge: {
+    backgroundColor: "#27AE60",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 15,
+    alignSelf: "flex-start",
+  },
+  roleText: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    fontSize: 12,
+    letterSpacing: 1,
+  },
+  content: {
+    flex: 1,
+    padding: 25,
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#003366",
     marginBottom: 15,
   },
-  emptyBox: {
-    padding: 20,
-    backgroundColor: "#EAECEE",
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    borderStyle: "dashed",
+    marginBottom: 20,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  emptyText: {
+    color: "#7F8C8D",
+    textAlign: "center",
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  actionButton: {
+    backgroundColor: "#003366",
+    padding: 16,
     borderRadius: 10,
     alignItems: "center",
+    elevation: 3,
   },
-  emptyText: { color: "#7F8C8D", fontStyle: "italic" },
-  teamCard: {
-    backgroundColor: "#FFF",
+  actionButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "bold", // <-- ERRO ESTAVA AQUI, AGORA CORRIGIDO!
+    fontSize: 16,
+  },
+  footer: {
     padding: 20,
-    borderRadius: 12,
-    borderLeftWidth: 5,
-    borderLeftColor: "#003366",
-    elevation: 2,
-    marginBottom: 15,
-  },
-  teamName: { fontSize: 18, fontWeight: "bold", color: "#003366" },
-  teamTheme: { color: "#7F8C8D", marginTop: 5, fontSize: 14 },
-  createBtn: {
-    backgroundColor: "#27AE60",
-    padding: 18,
-    borderRadius: 12,
+    paddingBottom: 40,
     alignItems: "center",
-    marginTop: 10,
   },
-  createBtnText: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
-  logout: { padding: 20, alignItems: "center", marginTop: "auto" },
-  logoutText: { color: "#E74C3C", fontWeight: "600" },
+  logoutButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  logoutText: {
+    color: "#E74C3C",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });

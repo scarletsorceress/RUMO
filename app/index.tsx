@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { AuthProvider, Role } from "../src/services/auth.service";
+import { Role } from "../src/services/auth.service";
+import { supabase } from '../lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -18,17 +19,53 @@ export default function LoginScreen() {
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState<Role>("aluno");
 
-  const handleAuth = () => {
+  const handleAutenticacao = async () => {
+    // LÓGICA DE LOGIN
     if (isLogin) {
-      if (AuthProvider.login(email, senha)) return router.replace("/home");
-      Alert.alert("Erro", "Acesso negado.");
-    } else {
-      if (AuthProvider.register({ nome, email, senha, tipo })) {
-        Alert.alert("Sucesso", "Conta criada!");
-        setIsLogin(true);
-      } else {
-        Alert.alert("Erro", "E-mail já cadastrado.");
+      if (!email || !senha) {
+        Alert.alert("Erro", "Preencha e-mail e senha!");
+        return;
       }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password: senha,
+      });
+
+      if (error) {
+        Alert.alert("Acesso Negado", "E-mail ou senha incorretos.");
+        return;
+      }
+
+      Alert.alert("Sucesso", "Acesso liberado!", [
+        { text: "OK", onPress: () => router.replace("/home") }
+      ]);
+    }
+    // LÓGICA DE CADASTRO
+    else {
+      if (!nome || !email || !senha) {
+        Alert.alert("Erro", "Preencha todos os campos!");
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email: email.toLowerCase(),
+        password: senha,
+        options: {
+          data: {
+            nome_completo: nome,
+            tipo_usuario: tipo, // Salva se é aluno ou orientador
+          }
+        }
+      });
+
+      if (error) {
+        Alert.alert("Erro no Cadastro", error.message);
+        return;
+      }
+
+      Alert.alert("Sucesso", "Conta criada com sucesso! Agora você pode entrar.");
+      setIsLogin(true); // Retorna automaticamente para a tela de login
     }
   };
 
@@ -43,6 +80,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               placeholder="Nome"
+              placeholderTextColor="#7F8C8D"
               value={nome}
               onChangeText={setNome}
             />
@@ -67,19 +105,23 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="E-mail"
+          placeholderTextColor="#7F8C8D"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
+          keyboardType="email-address"
         />
         <TextInput
           style={styles.input}
           placeholder="Senha"
+          placeholderTextColor="#7F8C8D"
           value={senha}
           onChangeText={setSenha}
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.btnPrimary} onPress={handleAuth}>
+        {/* Botão atualizado para chamar a nova função */}
+        <TouchableOpacity style={styles.btnPrimary} onPress={handleAutenticacao}>
           <Text style={styles.btnPrimaryText}>
             {isLogin ? "ENTRAR" : "CADASTRAR"}
           </Text>

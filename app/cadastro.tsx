@@ -4,27 +4,45 @@ import { Alert, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, 
 import CustomInput from '../components/CustomInput';
 import OutlineButton from '../components/OutlineButton';
 import { Colors } from '../constants/Colors';
+import { supabase } from '../lib/supabase';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleCadastro = () => {
-    // Lógica de Cadastro (Mock) - Validação de campos vazios
+  const handleCadastro = async () => {
     if (!name || !email || !password) {
       Alert.alert("Erro", "Preencha todos os campos!");
       return;
     }
-    
-    // Se passou pela validação, simula o sucesso
-    Alert.alert("Sucesso", "Conta criada com sucesso! Faça seu login.");
-    router.replace("/"); // Manda de volta para a tela de login
+
+    // Chama o banco de dados para criar o usuário
+    const { data, error } = await supabase.auth.signUp({
+      email: email.toLowerCase(),
+      password: password,
+      options: {
+        data: {
+          nome_completo: name, // Salva o nome nos metadados
+        }
+      }
+    });
+
+    // Se o Supabase retornar um erro (ex: e-mail já existe, senha fraca)
+    if (error) {
+      Alert.alert("Erro no Cadastro", error.message);
+      return;
+    }
+
+    // Se deu tudo certo
+    Alert.alert("Sucesso", "Conta criada com sucesso! Faça seu login.", [
+      { text: "OK", onPress: () => router.replace("/") }
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
@@ -34,13 +52,13 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.formContainer}>
-          <CustomInput 
+          <CustomInput
             label="NOME"
             value={name}
             onChangeText={setName}
           />
 
-          <CustomInput 
+          <CustomInput
             label="EMAIL"
             value={email}
             onChangeText={setEmail}
@@ -48,7 +66,7 @@ export default function RegisterScreen() {
             autoCapitalize="none"
           />
 
-          <CustomInput 
+          <CustomInput
             label="SENHA"
             value={password}
             onChangeText={setPassword}
