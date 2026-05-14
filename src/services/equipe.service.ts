@@ -1,5 +1,5 @@
 import { db } from "../../lib/firebase";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { AuthProvider } from "./auth.service";
 
 export interface Equipe {
@@ -77,4 +77,25 @@ export const EquipeProvider = {
       return [];
     }
   },
+
+  getEquipePorId: async (id: string): Promise<Equipe | null> => {
+    try {
+      const docRef = doc(db, 'equipes', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          nome: data.nome,
+          tema: data.tema,
+          idOrientador: data.idOrientador,
+          emailsAlunos: data.emailsAlunos || [],
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Erro ao buscar equipe:", error);
+      return null;
+    }
+  }
 };
