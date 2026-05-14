@@ -1,3 +1,5 @@
+import { db } from "../../lib/firebase";
+import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { AuthProvider } from "./auth.service";
 
 export interface Equipe {
@@ -5,52 +7,74 @@ export interface Equipe {
   nome: string;
   tema: string;
   idOrientador: string;
-  emailsAlunos: string[]; // vinculando os alunos pelo email
+  emailsAlunos: string[]; 
 }
 
-let mockEquipes: Equipe[] = [];
-
 export const EquipeProvider = {
-  criar: (nome: string, tema: string, emailsAlunosStr: string): boolean => {
-    const user = AuthProvider.getCurrentUser();
+  criar: async (nome: string, tema: string, emailsAlunosStr: string): Promise<boolean> => {
+    try {
+      const user = AuthProvider.getCurrentUser();
+      if (!user) return false;
 
-    // apenas orientador cria as equipes
-    if (!user || user.tipo !== "orientador") return false;
+      const profile = await AuthProvider.getProfile(user.uid);
+      if (!profile || profile.tipo_usuario !== "orientador") return false;
 
-    // transformando a string de emails em um array
-    const emailsArray = emailsAlunosStr
-      .split(",")
-      .map((email) => email.toLowerCase().trim())
-      .filter((email) => email.length > 0);
+      const emailsArray = emailsAlunosStr
+        .split(",")
+        .map((email) => email.toLowerCase().trim())
+        .filter((email) => email.length > 0);
 
-    const novaEquipe: Equipe = {
-      id: Math.random().toString(36).substring(2, 9),
-      nome,
-      tema,
-      idOrientador: user.id,
-      emailsAlunos: emailsArray,
-    };
+      const novaEquipe = {
+        nome,
+        tema,
+        idOrientador: user.uid,
+        emailsAlunos: emailsArray,
+        criado_em: new Date().toISOString(),
+      };
 
-    mockEquipes.push(novaEquipe);
-    return true;
+      await addDoc(collection(db, 'equipes'), novaEquipe);
+      return true;
+    } catch (error) {
+      console.error("Erro ao criar equipe:", error);
+      return false;
+    }
   },
 
-  getMinhasEquipes: (): Equipe[] => {
-    const user = AuthProvider.getCurrentUser();
-    if (!user) return [];
+  getMinhasEquipes: async (): Promise<Equipe[]> => {
+    try {
+      const user = AuthProvider.getCurrentUser();
+      if (!user || !user.email) return [];
 
-    // Se for orientador, retorna as equipes que ele criou
-    if (user.tipo === "orientador") {
-      return mockEquipes.filter((equipe) => equipe.idOrientador === user.id);
+      const profile = await AuthProvider.getProfile(user.uid);
+      if (!profile) return [];
+
+      const equipesRef = collection(db, 'equipes');
+      let q;
+
+      if (profile.tipo_usuario === "orientador") {
+        q = query(equipesRef, where("idOrientador", "==", user.uid));
+      } else {
+        q = query(equipesRef, where("emailsAlunos", "array-contains", user.email));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const equipes: Equipe[] = [];
+      
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        equipes.push({
+          id: docSnap.id,
+          nome: data.nome,
+          tema: data.tema,
+          idOrientador: data.idOrientador,
+          emailsAlunos: data.emailsAlunos || [],
+        });
+      });
+
+      return equipes;
+    } catch (error) {
+      console.error("Erro ao buscar equipes:", error);
+      return [];
     }
-
-    // Se for aluno, retorna as equipes onde o email dele está na lista
-    if (user.tipo === "aluno") {
-      return mockEquipes.filter((equipe) =>
-        equipe.emailsAlunos.includes(user.email),
-      );
-    }
-
-    return [];
   },
 };

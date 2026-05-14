@@ -1,59 +1,72 @@
+import { auth, db } from "../../lib/firebase";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  updateProfile 
+} from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+
 export type Role = "aluno" | "orientador";
 
-export interface User {
+export interface UserProfile {
   id: string;
   email: string;
-  senha?: string;
-  tipo: Role;
-  nome: string;
+  tipo_usuario: Role;
+  nome_completo: string;
 }
 
-let mockUsers: User[] = [
-  {
-    id: "1",
-    email: "aluno@tcc.com",
-    senha: "123",
-    tipo: "aluno",
-    nome: "João Aluno",
-  },
-  {
-    id: "2",
-    email: "orientador@tcc.com",
-    senha: "123",
-    tipo: "orientador",
-    nome: "Prof. Silva",
-  },
-];
-
-// vbariável que guarda a sessão atual
-let currentUser: User | null = null;
-
 export const AuthProvider = {
-  login: (email: string, senha: string): User | undefined => {
-    const user = mockUsers.find(
-      (u) => u.email === email.toLowerCase().trim() && u.senha === senha,
+  login: async (email: string, senha: string) => {
+    const userCredential = await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), senha);
+    return userCredential.user;
+  },
+
+  register: async (nome: string, email: string, senha: string, tipo: Role) => {
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email.toLowerCase().trim(),
+      senha,
     );
-    if (user) currentUser = user; // salva o usuário na sessão
+    const user = userCredential.user;
+
+    await updateProfile(user, { displayName: nome });
+
+    await setDoc(doc(db, 'usuarios', user.uid), {
+      nome_completo: nome,
+      email: email.toLowerCase().trim(),
+      tipo_usuario: tipo,
+      criado_em: new Date().toISOString(),
+    });
+
     return user;
   },
 
-  register: (novoUsuario: Omit<User, "id">): boolean => {
-    const exists = mockUsers.some(
-      (u) => u.email === novoUsuario.email.toLowerCase().trim(),
-    );
-    if (exists) return false;
-
-    mockUsers.push({
-      ...novoUsuario,
-      id: Math.random().toString(36).substring(2, 9),
-      email: novoUsuario.email.toLowerCase().trim(),
-    });
-    return true;
+  logout: async () => {
+    await signOut(auth);
   },
 
-  getCurrentUser: () => currentUser,
-
-  logout: () => {
-    currentUser = null; // limpa a sessão ao sair
+  getProfile: async (uid: string): Promise<UserProfile | null> => {
+    try {
+      const docRef = doc(db, 'usuarios', uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+          id: uid,
+          email: data.email,
+          tipo_usuario: data.tipo_usuario as Role,
+          nome_completo: data.nome_completo,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Erro ao obter perfil:", error);
+      return null;
+    }
   },
+  
+  getCurrentUser: () => {
+    return auth.currentUser;
+  }
 };

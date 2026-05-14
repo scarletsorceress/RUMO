@@ -18,7 +18,7 @@ export default function CriarEquipeScreen() {
   const [tema, setTema] = useState("");
   const [alunosStr, setAlunosStr] = useState("");
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!nome || !tema || !alunosStr) {
       return Alert.alert(
         "Atenção",
@@ -26,13 +26,13 @@ export default function CriarEquipeScreen() {
       );
     }
 
-    const sucesso = EquipeProvider.criar(nome, tema, alunosStr);
+    const sucesso = await EquipeProvider.criar(nome, tema, alunosStr);
 
     if (sucesso) {
       Alert.alert("Sucesso", "Equipe registrada no sistema!");
       router.back();
     } else {
-      Alert.alert("Erro", "Apenas orientadores podem criar equipes.");
+      Alert.alert("Erro", "Não foi possível criar. Verifique se você é um orientador.");
     }
   };
 

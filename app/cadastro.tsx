@@ -1,15 +1,16 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomInput from '../components/CustomInput';
 import OutlineButton from '../components/OutlineButton';
 import { Colors } from '../constants/Colors';
-import { supabase } from '../lib/supabase';
+import { AuthProvider, Role } from '../src/services/auth.service';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [tipoUsuario, setTipoUsuario] = useState<Role>('aluno');
 
   const handleCadastro = async () => {
     if (!name || !email || !password) {
@@ -17,27 +18,23 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Chama o banco de dados para criar o usuário
-    const { data, error } = await supabase.auth.signUp({
-      email: email.toLowerCase(),
-      password: password,
-      options: {
-        data: {
-          nome_completo: name, // Salva o nome nos metadados
-        }
+    try {
+      await AuthProvider.register(name, email, password, tipoUsuario);
+
+      Alert.alert("Sucesso", "Conta criada com sucesso! Faça seu login.", [
+        { text: "OK", onPress: () => router.replace("/") }
+      ]);
+    } catch (error: any) {
+      let mensagem = error.message;
+      if (error.code === 'auth/email-already-in-use') {
+        mensagem = "Este e-mail já está cadastrado. Tente fazer login.";
+      } else if (error.code === 'auth/weak-password') {
+        mensagem = "A senha deve ter pelo menos 6 caracteres.";
+      } else if (error.code === 'auth/invalid-email') {
+        mensagem = "O e-mail informado é inválido.";
       }
-    });
-
-    // Se o Supabase retornar um erro (ex: e-mail já existe, senha fraca)
-    if (error) {
-      Alert.alert("Erro no Cadastro", error.message);
-      return;
+      Alert.alert("Erro no Cadastro", mensagem);
     }
-
-    // Se deu tudo certo
-    Alert.alert("Sucesso", "Conta criada com sucesso! Faça seu login.", [
-      { text: "OK", onPress: () => router.replace("/") }
-    ]);
   };
 
   return (
@@ -57,6 +54,46 @@ export default function RegisterScreen() {
             value={name}
             onChangeText={setName}
           />
+
+          {/* Seletor de tipo de usuário */}
+          <View style={styles.tipoContainer}>
+            <Text style={styles.tipoLabel}>TIPO DE USUÁRIO</Text>
+            <View style={styles.tipoButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.tipoButton,
+                  tipoUsuario === 'aluno' && styles.tipoButtonSelected,
+                ]}
+                onPress={() => setTipoUsuario('aluno')}
+              >
+                <Text
+                  style={[
+                    styles.tipoButtonText,
+                    tipoUsuario === 'aluno' && styles.tipoButtonTextSelected,
+                  ]}
+                >
+                  Aluno
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tipoButton,
+                  tipoUsuario === 'orientador' && styles.tipoButtonSelected,
+                ]}
+                onPress={() => setTipoUsuario('orientador')}
+              >
+                <Text
+                  style={[
+                    styles.tipoButtonText,
+                    tipoUsuario === 'orientador' && styles.tipoButtonTextSelected,
+                  ]}
+                >
+                  Orientador
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           <CustomInput
             label="EMAIL"
@@ -103,6 +140,46 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
+  },
+  tipoContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  tipoLabel: {
+    color: Colors.textWhite,
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 6,
+    marginLeft: 15,
+    letterSpacing: 1,
+  },
+  tipoButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  tipoButton: {
+    flex: 1,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: 20,
+    height: 55,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  tipoButtonSelected: {
+    backgroundColor: Colors.textWhite,
+    borderColor: Colors.textWhite,
+  },
+  tipoButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.textBlack,
+    opacity: 0.5,
+  },
+  tipoButtonTextSelected: {
+    color: Colors.background,
+    opacity: 1,
   },
   buttonContainer: {
     marginTop: 10,

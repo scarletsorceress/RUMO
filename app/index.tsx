@@ -1,5 +1,7 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../lib/firebase";
 import {
   Alert,
   StyleSheet,
@@ -8,8 +10,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { Role } from "../src/services/auth.service";
-import { supabase } from '../lib/supabase';
+import { AuthProvider, Role } from "../src/services/auth.service";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,6 +20,17 @@ export default function LoginScreen() {
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState<Role>("aluno");
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Se já tem usuário autenticado, vai direto pra Home
+        router.replace("/home");
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
   const handleAutenticacao = async () => {
     // LÓGICA DE LOGIN
     if (isLogin) {
@@ -27,19 +39,14 @@ export default function LoginScreen() {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase(),
-        password: senha,
-      });
-
-      if (error) {
+      try {
+        await AuthProvider.login(email, senha);
+        Alert.alert("Sucesso", "Acesso liberado!", [
+          { text: "OK", onPress: () => router.replace("/home") }
+        ]);
+      } catch (error: any) {
         Alert.alert("Acesso Negado", "E-mail ou senha incorretos.");
-        return;
       }
-
-      Alert.alert("Sucesso", "Acesso liberado!", [
-        { text: "OK", onPress: () => router.replace("/home") }
-      ]);
     }
     // LÓGICA DE CADASTRO
     else {
@@ -48,24 +55,13 @@ export default function LoginScreen() {
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
-        email: email.toLowerCase(),
-        password: senha,
-        options: {
-          data: {
-            nome_completo: nome,
-            tipo_usuario: tipo, // Salva se é aluno ou orientador
-          }
-        }
-      });
-
-      if (error) {
+      try {
+        await AuthProvider.register(nome, email, senha, tipo);
+        Alert.alert("Sucesso", "Conta criada com sucesso! Agora você pode entrar.");
+        setIsLogin(true); // Retorna automaticamente para a tela de login
+      } catch (error: any) {
         Alert.alert("Erro no Cadastro", error.message);
-        return;
       }
-
-      Alert.alert("Sucesso", "Conta criada com sucesso! Agora você pode entrar.");
-      setIsLogin(true); // Retorna automaticamente para a tela de login
     }
   };
 
