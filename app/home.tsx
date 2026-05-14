@@ -8,8 +8,6 @@ import {
   View,
 } from "react-native";
 
-import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthProvider } from "../src/services/auth.service";
 import { Equipe, EquipeProvider } from "../src/services/equipe.service";
@@ -22,25 +20,26 @@ export default function HomeScreen() {
   const [loadingEquipes, setLoadingEquipes] = useState(true);
 
   useEffect(() => {
-    async function getProfile() {
+    let unsubscribeEquipes: (() => void) | undefined;
+
+    async function loadData() {
       const user = AuthProvider.getCurrentUser();
 
       if (!user) {
         setNomeUsuario("Usuário");
+        setLoadingEquipes(false);
         return;
       }
 
-      // Pega o nome do displayName ou do email
+      // 1. Configura Nome
       let nome = user.displayName || user.email?.split('@')[0] || "Usuário";
-
       nome = nome
         .split(' ')
         .map((palavra: string) => palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase())
         .join(' ');
-
       setNomeUsuario(nome);
 
-      // Busca o tipo de usuário no perfil
+      // 2. Busca o Perfil
       try {
         const profile = await AuthProvider.getProfile(user.uid);
         if (profile) {
@@ -49,23 +48,24 @@ export default function HomeScreen() {
       } catch (error) {
         setPerfil("ALUNO");
       }
-    }
 
-    getProfile();
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      async function fetchEquipes() {
-        setLoadingEquipes(true);
-        const minhasEquipes = await EquipeProvider.getMinhasEquipes();
+      // 3. Ativa o ouvinte em Tempo Real para as equipes
+      // Evita piscar a tela (flicker) tirando o setLoading quando os dados chegarem
+      unsubscribeEquipes = await EquipeProvider.ouvirMinhasEquipes((minhasEquipes) => {
         setEquipes(minhasEquipes);
         setLoadingEquipes(false);
-      }
+      });
+    }
 
-      fetchEquipes();
-    }, [])
-  );
+    loadData();
+
+    // Limpeza ao sair da tela
+    return () => {
+      if (unsubscribeEquipes) {
+        unsubscribeEquipes();
+      }
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {

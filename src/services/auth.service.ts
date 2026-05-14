@@ -39,6 +39,9 @@ export const AuthProvider = {
       criado_em: new Date().toISOString(),
     });
 
+    // Desloga o usuário imediatamente para que ele tenha que fazer login manual
+    await signOut(auth);
+
     return user;
   },
 

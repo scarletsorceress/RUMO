@@ -22,14 +22,15 @@ export default function LoginScreen() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // Se já tem usuário autenticado, vai direto pra Home
+      // Se houver um usuário E a pessoa estiver na tela de Login (não no meio de um cadastro)
+      if (user && isLogin) {
+        // Vai direto pra Home
         router.replace("/home");
       }
     });
 
     return unsubscribe;
-  }, []);
+  }, [isLogin]);
 
   const handleAutenticacao = async () => {
     // LÓGICA DE LOGIN

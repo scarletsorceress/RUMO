@@ -26,13 +26,13 @@ export default function CriarEquipeScreen() {
       );
     }
 
-    const sucesso = await EquipeProvider.criar(nome, tema, alunosStr);
+    const resultado = await EquipeProvider.criar(nome, tema, alunosStr);
 
-    if (sucesso) {
+    if (resultado.sucesso) {
       Alert.alert("Sucesso", "Equipe registrada no sistema!");
       router.back();
     } else {
-      Alert.alert("Erro", "Não foi possível criar. Verifique se você é um orientador.");
+      Alert.alert("Erro", resultado.erro || "Não foi possível criar. Verifique suas permissões.");
     }
   };
 
